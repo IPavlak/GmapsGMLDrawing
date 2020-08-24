@@ -13,3 +13,8 @@ sudo apt-get install python-gdal
 sudo apt-get install libwebkitgtk-dev
 ```
 
+-Glade
+```
+sudo apt-get install glade
+```
+
