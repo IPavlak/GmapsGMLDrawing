@@ -31,8 +31,12 @@ class MapApp(threading.Thread):
         self.parcelEntry = self.builder.get_object('dropdownParcels_entry')
         self.parcelListStore = self.builder.get_object('dropdownParcels_liststore')
         self.parcelComboBox = self.builder.get_object('parcel_combobox')
-        self.mouseLatLabel = self.builder.get_object('mouseLat_label')
-        self.mouseLongLabel = self.builder.get_object('mouseLong_label')
+        self.mouseLatLabel = self.builder.get_object('mouse_latitude_label')
+        self.mouseLongLabel = self.builder.get_object('mouse_longitude_label')
+        self.mouseCoordSystemLabel = self.builder.get_object('coordinate_system_label')
+        self.mouseLatLabelFix = self.builder.get_object('mouse_latitude_label_fix')
+        self.mouseLongLabelFix = self.builder.get_object('mouse_longitude_label_fix')
+        self.mouseCoordSystemLabelFix = self.builder.get_object('coordinate_system_label_fix')
         self.hideMarkersCheckbox = self.builder.get_object('hideMarkers_cb')
         self.hidePolygonCheckbox = self.builder.get_object('hidePolygon_cb')
         self.UAVredImg = self.builder.get_object('uav_red_img')
@@ -93,7 +97,7 @@ class MapApp(threading.Thread):
         self.v_translate = [0, 0]; self.alpha_rotate = 0
 
         # generate map.html
-        HTMLgenerator = MapHTMLgenerator(0, 0, 1, apikey='')
+        HTMLgenerator = MapHTMLgenerator(0, 0, 1, apikey='AIzaSyAvFZ4xali0KK8Qh-XRs8Wsbbaj7CktBag')
         HTMLfile = os.path.dirname(os.path.abspath(__file__)) + "/map.html"
         HTMLgenerator.draw(HTMLfile)
 
@@ -136,13 +140,15 @@ class MapApp(threading.Thread):
     def UAVcoords_stream(self):
         while self.activeParcelTreeIter is None and self.running:
             pass
-        lat1, long1 = self.coords[0][0][1], self.coords[0][0][0]
-        lat2, long2 = self.coords[0][1][1], self.coords[0][1][0]
-        lat3, long3 = self.coords[0][2][1], self.coords[0][2][0]
-        lat4, long4 = self.coords[0][3][1], self.coords[0][3][0]
         N = 100
         sleep(3)
         while self.running:
+            if self.activeParcelTreeIter is None:
+                continue
+            lat1, long1 = self.coords[0][0][1], self.coords[0][0][0]
+            lat2, long2 = self.coords[0][1][1], self.coords[0][1][0]
+            lat3, long3 = self.coords[0][2][1], self.coords[0][2][0]
+            lat4, long4 = self.coords[0][3][1], self.coords[0][3][0]
             for i in range(N):
                 lt1 = lat1+(lat2-lat1)/N*i
                 ln1 = long1+(long2-long1)/N*i
@@ -195,6 +201,8 @@ class MapApp(threading.Thread):
             return
         self.mouseLatLabel.set_text("%16.12f" % msg['mouseCoords']['lat'])
         self.mouseLongLabel.set_text("%16.12f" % msg['mouseCoords']['lng'])
+        self.mouseLatLabelFix.set_text("%16.12f" % msg['mouseCoords']['lat'])
+        self.mouseLongLabelFix.set_text("%16.12f" % msg['mouseCoords']['lng'])
 
         if msg['origin'] == 'marker_rotate_mouseup':
             self.adjustedCoords = msg['markerCoords']
@@ -426,6 +434,7 @@ class MapApp(threading.Thread):
         self.coords = config['coordinates']
         self.adjustedCoords = config['adjusted_coordinates']
         parcelID = config['parcelID']
+        self.coords[parcelID] = self.adjustedCoords
 
         self.parcelListStore.clear()
         for i in range(len(self.coords)):

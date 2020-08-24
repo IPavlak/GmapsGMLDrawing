@@ -521,7 +521,7 @@
                                 <property name="spacing">5</property>
                                 <property name="homogeneous">True</property>
                                 <child>
-                                  <object class="GtkLabel" id="coordSystem_label">
+                                  <object class="GtkLabel" id="coordinate_system_label">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="label" translatable="yes">WGS84 (Latitude, Longitude)</property>
@@ -538,7 +538,7 @@
                                     <property name="can_focus">False</property>
                                     <property name="homogeneous">True</property>
                                     <child>
-                                      <object class="GtkLabel" id="mouseLat_label">
+                                      <object class="GtkLabel" id="mouse_latitude_label">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="label" translatable="yes">Latitude</property>
@@ -550,7 +550,7 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkLabel" id="mouseLong_label">
+                                      <object class="GtkLabel" id="mouse_longitude_label">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
                                         <property name="label" translatable="yes">Longitude</property>
@@ -1245,10 +1245,10 @@
                                 <property name="spacing">5</property>
                                 <property name="homogeneous">True</property>
                                 <child>
-                                  <object class="GtkLabel" id="coordSystem_label3">
+                                  <object class="GtkLabel" id="coordinate_system_label_fix">
                                     <property name="visible">True</property>
                                     <property name="can_focus">False</property>
-                                    <property name="label" translatable="yes">cordinate system name</property>
+                                    <property name="label" translatable="yes">WGS84 (Latitude, Longitude)</property>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -1264,10 +1264,10 @@
                                     <property name="spacing">31</property>
                                     <property name="homogeneous">True</property>
                                     <child>
-                                      <object class="GtkLabel" id="mouseLat_label_fix1">
+                                      <object class="GtkLabel" id="mouse_latitude_label_fix">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
-                                        <property name="label" translatable="yes">first coordinate</property>
+                                        <property name="label" translatable="yes">Latitude</property>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
@@ -1276,10 +1276,10 @@
                                       </packing>
                                     </child>
                                     <child>
-                                      <object class="GtkLabel" id="mouseLong_label_fix1">
+                                      <object class="GtkLabel" id="mouse_longitude_label_fix">
                                         <property name="visible">True</property>
                                         <property name="can_focus">False</property>
-                                        <property name="label" translatable="yes">second coordinate</property>
+                                        <property name="label" translatable="yes">Longitude</property>
                                       </object>
                                       <packing>
                                         <property name="expand">False</property>
