@@ -97,7 +97,7 @@ class MapApp(threading.Thread):
         self.v_translate = [0, 0]; self.alpha_rotate = 0
 
         # generate map.html
-        HTMLgenerator = MapHTMLgenerator(0, 0, 1, apikey='AIzaSyAvFZ4xali0KK8Qh-XRs8Wsbbaj7CktBag')
+        HTMLgenerator = MapHTMLgenerator(0, 0, 1, apikey='')
         HTMLfile = os.path.dirname(os.path.abspath(__file__)) + "/map.html"
         HTMLgenerator.draw(HTMLfile)
 
