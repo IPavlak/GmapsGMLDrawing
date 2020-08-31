@@ -28,8 +28,8 @@ class MapApp(threading.Thread):
         self.builder.connect_signals(self)
 
         # GTK elements
-        self.parcelEntry = self.builder.get_object('dropdownParcels_entry')
-        self.parcelListStore = self.builder.get_object('dropdownParcels_liststore')
+        self.parcelEntry = self.builder.get_object('dropdown_parcels_entry')
+        self.parcelListStore = self.builder.get_object('dropdown_parcels_liststore')
         self.parcelComboBox = self.builder.get_object('parcel_combobox')
         self.mouseLatLabel = self.builder.get_object('mouse_latitude_label')
         self.mouseLongLabel = self.builder.get_object('mouse_longitude_label')
@@ -37,6 +37,9 @@ class MapApp(threading.Thread):
         self.mouseLatLabelFix = self.builder.get_object('mouse_latitude_label_fix')
         self.mouseLongLabelFix = self.builder.get_object('mouse_longitude_label_fix')
         self.mouseCoordSystemLabelFix = self.builder.get_object('coordinate_system_label_fix')
+        self.mouseLatLabelCustom = self.builder.get_object('mouse_latitude_label_custom')
+        self.mouseLongLabelCustom = self.builder.get_object('mouse_longitude_label_custom')
+        self.mouseCoordSystemLabelCustom = self.builder.get_object('coordinate_system_label_custom')
         self.hideMarkersCheckbox = self.builder.get_object('hideMarkers_cb')
         self.hidePolygonCheckbox = self.builder.get_object('hidePolygon_cb')
         self.UAVredImg = self.builder.get_object('uav_red_img')
@@ -59,6 +62,10 @@ class MapApp(threading.Thread):
         self.markerListStore = self.builder.get_object('dropdown_markers_liststore')
         self.polygonDragCheckButton = self.builder.get_object('polygon_drag_checkbutton')
         self.polygonRotateCheckButton = self.builder.get_object('polygon_rotate_checkbutton')
+        self.addMarkersToggleButton = self.builder.get_object('add_markers_togglebutton')
+        self.deleteLastMarkerButton = self.builder.get_object('delete_last_marker_button')
+        self.resetNewMarkersButton = self.builder.get_object('reset_new_markers_button')
+        self.acceptNewMarkersButton = self.builder.get_object('accept_new_markers_button')
 
         fileChooser = self.builder.get_object('file_chooser')
         GMLFileFilter = self.builder.get_object('GMLfile_filter')
@@ -84,6 +91,19 @@ class MapApp(threading.Thread):
         self.markerColorButton.connect('notify::color', self.onMarkerColorChange)
         self.polygonColorButton.connect('notify::color', self.onPolygonColorChange)
 
+        styleProvider = Gtk.CssProvider()
+        styleProvider.load_from_data('''
+            #add_markers_togglebutton { 
+                background: #DA3030; 
+                color: #C5B9C4;
+            }
+        ''')
+        Gtk.StyleContext.add_provider(
+            self.addMarkersToggleButton.get_style_context(),
+            styleProvider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
         self.activeParcelTreeIter = None
 
 
@@ -93,6 +113,7 @@ class MapApp(threading.Thread):
 
         self.coords = []
         self.adjustedCoords = []
+        self.customCoords = []
         self.phi0 = 0; self.R = 6370000 # earth radius
         self.v_translate = [0, 0]; self.alpha_rotate = 0
 
@@ -136,6 +157,7 @@ class MapApp(threading.Thread):
             self.jsWrapper.add_UAV('green')
             self.jsWrapper.add_UAV('blue')
             self.jsWrapper.execute()
+    
     
     def UAVcoords_stream(self):
         while self.activeParcelTreeIter is None and self.running:
@@ -203,6 +225,8 @@ class MapApp(threading.Thread):
         self.mouseLongLabel.set_text("%16.12f" % msg['mouseCoords']['lng'])
         self.mouseLatLabelFix.set_text("%16.12f" % msg['mouseCoords']['lat'])
         self.mouseLongLabelFix.set_text("%16.12f" % msg['mouseCoords']['lng'])
+        self.mouseLatLabelCustom.set_text("%16.12f" % msg['mouseCoords']['lat'])
+        self.mouseLongLabelCustom.set_text("%16.12f" % msg['mouseCoords']['lng'])
 
         if msg['origin'] == 'marker_rotate_mouseup':
             self.adjustedCoords = msg['markerCoords']
@@ -212,6 +236,8 @@ class MapApp(threading.Thread):
         elif msg['origin'] == 'polygon_drag_end':
             self.adjustedCoords = msg['markerCoords']
             self.set_transformation_parameters()
+        elif msg['origin'] == 'markers_custom':
+            self.customCoords = msg['customMarkerCoords']
 
 
     def set_transformation_parameters(self):
@@ -592,6 +618,79 @@ class MapApp(threading.Thread):
         }
         with open(templateFile, 'w') as f:
             f.write( json.dumps(template, indent=4) )
+
+    
+    def onAddMarkersToggle(self, togglebutton):
+        styleProvider = Gtk.CssProvider()
+        if togglebutton.get_active():
+            styleProvider.load_from_data('#add_markers_togglebutton { background: #3B54DC; }')
+        else:
+            styleProvider.load_from_data('#add_markers_togglebutton { background: #DA3030; }')
+        Gtk.StyleContext.add_provider(
+            togglebutton.get_style_context(),
+            styleProvider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+        self.hideMarkersCheckbox.set_active(togglebutton.get_active())
+        self.hidePolygonCheckbox.set_active(togglebutton.get_active())
+        self.jsWrapper.custom_markers(togglebutton.get_active())
+        self.jsWrapper.execute()
+
+    def onResetNewMarkersClick(self, button):
+        self.jsWrapper.remove_custom_markers()
+        self.jsWrapper.execute()
+
+    def onDeleteLastNewMarkerClick(self, button):
+        self.jsWrapper.delete_last_custom_marker()
+        self.jsWrapper.execute()
+
+    def onAcceptNewMarkersClick(self, button):
+        if(len(self.customCoords) < 3):
+            infodialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text="Not enough points selected"
+            )
+            infodialog.format_secondary_text("At least 3 points are needed to construct Building Ground Plan")
+            infodialog.run()
+            infodialog.destroy()
+            return
+
+        dialog = Gtk.MessageDialog(
+            transient_for=self.window,
+            flags=0,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK_CANCEL,
+            text='Your selection will be saved as building'
+        )
+        dialog.format_secondary_text("Selection is saved temporarily, if you want to save it permenantly save it as configuration file (Save Config)")
+        response = dialog.run()
+        dialog.destroy()
+
+        if response == Gtk.ResponseType.OK:
+            newParcelID = len(self.coords)
+            newParcelName = "Parcel" + str(newParcelID+1)
+            self.parcelListStore.append([newParcelID, newParcelName])
+            self.customCoords.append(self.customCoords[0])
+            self.coords.append(self.customCoords)
+            self.activeParcelTreeIter = None
+            self.parcelComboBox.set_active(newParcelID)
+
+            infodialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text="New Building Ground Plan is saved as " + newParcelName
+            )
+            infodialog.run()
+            infodialog.destroy()
+
+            self.onResetNewMarkersClick(None)
+            self.addMarkersToggleButton.set_active(False)
 
 
     def destroy(self, *args):

@@ -61,13 +61,15 @@ class MapHTMLgenerator():
 
         f.write('<script type="text/javascript">\n')
         f.write('\tvar markers = [];\n')
+        f.write('\tvar markers_custom = [];\n')
         f.write('\tvar markers_uav = {};\n')
         f.write('\tvar polygon;\n')
         f.write('\tvar map;\n\n')
         f.write('\tvar titleJSON = {\n')
         f.write('\t\torigin: "",\n')
         f.write('\t\tmouseCoords: {},\n')
-        f.write('\t\tmarkerCoords: []\n')
+        f.write('\t\tmarkerCoords: [],\n')
+        f.write('\t\tcustomMarkerCoords: []\n')
         f.write('\t};\n\n')
         f.write('\tfunction initialize() {\n')
         self.write_map(f)
@@ -216,6 +218,79 @@ class GoogleMapsJSWrapper:
             self.js_code += "polygon.setOptions({clickable: false});\n"
 
     
+    def custom_markers(self, generate_markers_flag, size=1.0):
+        self.js_code += "var size = %f;\n" % size
+        if generate_markers_flag:
+            self.js_code += \
+                '''
+                map.addListener('click', function(event){
+                    var marker = new google.maps.Marker({
+                        title: 'Custom Marker',
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 4 * size,
+                            fillColor: 'orange',
+                            fillOpacity: 1.0,
+                            strokeWeight: 0
+                        },
+                        position: event.latLng,
+                        draggable: true,
+                        zIndex: 10
+                    });
+                    marker.setMap(map);
+                    markers_custom.push(marker);
+
+                    marker.addListener('dragend', function(event) {
+                        titleJSON['origin'] = 'markers_custom';
+                        titleJSON['customMarkerCoords'] = [];
+                        markers_custom.forEach(marker => 
+                            titleJSON['customMarkerCoords'].push([marker.getPosition().lng(), 
+                                                                  marker.getPosition().lat()]));
+                        document.title = JSON.stringify(titleJSON);
+                    });
+
+                    titleJSON['origin'] = 'markers_custom';
+                    titleJSON['customMarkerCoords'] = [];
+                    markers_custom.forEach(marker => 
+                        titleJSON['customMarkerCoords'].push([marker.getPosition().lng(), 
+                                                              marker.getPosition().lat()]));
+                    document.title = JSON.stringify(titleJSON);
+                });
+                '''
+        else:
+            self.js_code += "google.maps.event.clearListeners(map, 'click');"
+
+    def remove_custom_markers(self):
+        self.js_code += \
+            '''
+            for(var i in markers_custom){
+                markers_custom[i].setMap(null);
+            }
+            markers_custom = [];
+
+            titleJSON['origin'] = 'markers_custom';
+            titleJSON['customMarkerCoords'] = [];
+            markers_custom.forEach(marker => 
+                titleJSON['customMarkerCoords'].push([marker.getPosition().lng(), 
+                                                      marker.getPosition().lat()]));
+            document.title = JSON.stringify(titleJSON);
+            '''
+
+    def delete_last_custom_marker(self):
+        self.js_code += \
+            '''
+            if(markers_custom.length > 0)
+                markers_custom.pop().setMap(null);
+            
+            titleJSON['origin'] = 'markers_custom';
+            titleJSON['customMarkerCoords'] = [];
+            markers_custom.forEach(marker => 
+                titleJSON['customMarkerCoords'].push([marker.getPosition().lng(), 
+                                                      marker.getPosition().lat()]));
+            document.title = JSON.stringify(titleJSON);
+            '''
+
+    
     def add_marker_rotation_listener(self, centerOfRotationMarkerID):
         self.js_code += \
             '''
@@ -338,10 +413,12 @@ class GoogleMapsJSWrapper:
         self.js_code += "}\n"
 
     def hide_polygon(self, hide_flag):
+        self.js_code += "if(polygon != null) {\n"
         if hide_flag:
-            self.js_code += "polygon.setVisible(false);\n"
+            self.js_code += "\tpolygon.setVisible(false);\n"
         else:
-            self.js_code += "polygon.setVisible(true);\n"
+            self.js_code += "\tpolygon.setVisible(true);\n"
+        self.js_code += "}\n"
 
     def set_UAV_marker_size(self, size):
         self.js_code += "var size = %f;\n" % size
