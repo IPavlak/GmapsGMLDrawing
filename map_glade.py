@@ -272,7 +272,7 @@ class MapApp(threading.Thread):
 
     def apply_adjustment(self, coords):
         if self.activeParcelTreeIter is None:
-            return
+            return coords
         parcelID = self.parcelListStore[self.activeParcelTreeIter][0]
         markerCoords = self.coords[parcelID]
 
