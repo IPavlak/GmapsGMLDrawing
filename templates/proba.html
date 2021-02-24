@@ -1,0 +1,61 @@
+<head></head>
+<body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<script type="text/javascript">
+// setup some JSON to use
+var cars = [
+	{ "make":"Porsche", "model":"911S" },
+	{ "make":"Mercedes-Benz", "model":"220SE" },
+	{ "make":"Jaguar","model": "Mark VII" }
+];
+
+window.onload = function() {
+	// setup the button click
+	document.getElementById("theButton").onclick = function() {
+		doWork()
+	};
+}
+
+function doWork() {
+	// ajax the JSON to the server
+	$.ajax({
+		type: "POST",
+		contentType: "application/json; charset=utf-8",
+		url: "/receiver",
+		data: JSON.stringify(cars),
+		dataType: "json"
+	})
+
+	// stop link reloading the page
+ event.preventDefault();
+}
+
+/*fetch('/publisher').then(function (response) {
+		return response.json();
+	}).then(function (json){
+		document.getElementById('theButton').innerHTML = json['zapisi'];
+		console.log(json);
+});*/
+/*
+$.ajax({
+	type: "GET",
+	contentType: "application/json; charset=utf-8",
+	url: "/publisher",
+	success: function (response) {
+		document.getElementById('theButton').innerHTML = response['zapisi'];
+		console.log(response);
+		console.log(response['zapisi']);
+	},
+	dataType: "json"
+});*/
+
+var source = new EventSource('/stream');
+source.onmessage = function (event) {
+	console.log(event)
+	document.getElementById('theButton').innerHTML = event.data;
+};
+
+</script>
+This will send data using AJAX to Python:<br /><br />
+<a id="theButton">Click Me</a>
+</body>

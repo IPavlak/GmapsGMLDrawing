@@ -1,0 +1,315 @@
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<title>Google Maps - pygmaps </title>
+<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=visualization&sensor=true_or_false&key=AIzaSyAvFZ4xali0KK8Qh-XRs8Wsbbaj7CktBag"></script>
+<script async defer type="text/javascript">
+	var markers = [];
+	var marker_uav;
+	var polygon;
+	var map;
+
+	function initialize() {
+		var centerlatlng = new google.maps.LatLng(40.414619, -3.712475);
+		var myOptions = {
+			zoom: 19,
+			center: centerlatlng,
+			mapTypeId: 'satellite',
+			tilt: 0
+		};
+		map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+
+		var latlng = new google.maps.LatLng(40.414619, -3.712475);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var latlng = new google.maps.LatLng(40.414566, -3.712463);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var latlng = new google.maps.LatLng(40.414468, -3.713248);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var latlng = new google.maps.LatLng(40.414521, -3.713258);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var latlng = new google.maps.LatLng(40.414806, -3.713314);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var latlng = new google.maps.LatLng(40.414935, -3.713339);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var latlng = new google.maps.LatLng(40.415038, -3.712564);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var latlng = new google.maps.LatLng(40.414811, -3.712515);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var latlng = new google.maps.LatLng(40.414619, -3.712475);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/FF0000.png');
+		var marker = new google.maps.Marker({
+			title: "no implementation",
+			icon: img,
+			position: latlng
+		});
+		marker.setMap(map);
+		markers.push(marker);
+
+		var coords = [
+			new google.maps.LatLng(40.414619, -3.712475),
+			new google.maps.LatLng(40.414566, -3.712463),
+			new google.maps.LatLng(40.414468, -3.713248),
+			new google.maps.LatLng(40.414521, -3.713258),
+			new google.maps.LatLng(40.414806, -3.713314),
+			new google.maps.LatLng(40.414935, -3.713339),
+			new google.maps.LatLng(40.415038, -3.712564),
+			new google.maps.LatLng(40.414811, -3.712515),
+			new google.maps.LatLng(40.414619, -3.712475),
+		];
+
+		polygon = new google.maps.Polygon({
+			clickable: true, 	// onemogucuje prikaz koordinata, draggable ne radi bez toga
+			geodesic: true,
+			fillColor: "#6495ED",
+			fillOpacity: 0.300000,
+			paths: coords,
+			strokeColor: "#6495ED",
+			strokeOpacity: 1.000000,
+			strokeWeight: 1,
+			draggable: true
+		});
+
+		polygon.setMap(map);
+
+		// mouse coordinates
+		map.addListener('mousemove', function (event) {
+			document.getElementById("coordsMouse_label").innerHTML = event.latLng.toString();
+			document.getElementById("coordsMouse_label2").innerHTML = event.latLng.toString();
+			document.title = JSON.stringify(event.latLng.toJSON());
+		})
+		// polygon drag
+		polygon.addListener('drag', function() {
+			var polypath = polygon.getPath().getArray();
+			for(var i = 0; i < polypath.length; i++){
+				markers[i].setPosition(polypath[i]);
+			}
+		})
+
+		//plava letjelica
+		var latlng = new google.maps.LatLng(40.41508819, -3.71345417);
+		var img = new google.maps.MarkerImage('/home/ivan/.local/lib/python2.7/site-packages/gmplot/markers/0000FF.png');
+		marker_uav = new google.maps.Marker({
+			title: "UAV1",
+			icon: img,
+			position: latlng
+		});
+		marker_uav.setMap(map);
+	}
+
+	// hide/show markers
+	function toggleMarkers(){
+		var checkbox = document.getElementById("hideMarkers_CB");
+		if (checkbox.checked == true){
+			for(var i = 0; i < markers.length; i++){
+				markers[i].setMap(null);
+			}
+		}
+		else{
+			for(var i = 0; i < markers.length; i++){
+				markers[i].setMap(map);
+			}
+		}
+	}
+	// hide/show polygon
+	function togglePolygon(){
+		var checkbox = document.getElementById("hidePolygon_CB");
+		if (checkbox.checked == true)
+			polygon.setMap(null);
+		else polygon.setMap(map);
+	}
+</script>
+
+<!-- Data window -->
+<link rel="stylesheet" href="/home/ivan/Documents/diplomski/photon/photon-0.1.2-alpha/dist/css/photon.css">
+<script type="text/javascript">
+	window.onload = function(){
+        document.getElementById("default").click();
+		initialize(); // google maps call
+		document.getElementById("hideMarkers_CB").checked = false;
+		document.getElementById("hidePolygon_CB").checked = false;
+    }
+	
+    function changeTab(evt, tab) {
+      // Declare all variables
+      var i, tabcontent, tablinks;
+
+      // Get all elements with class="tab-content" and hide them
+      tabcontent = document.getElementsByClassName("tab-content");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+
+      // Get all elements with class="tab-item" and remove the class "active"
+      tablinks = document.getElementsByClassName("tab-item");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+
+      // Show the current tab, and add an "active" class to the button that opened the tab
+      document.getElementById(tab).style.display = "block";
+      evt.currentTarget.className += " active";
+ 	}
+</script>
+</head>
+<body style="margin:0px; padding:0px;">
+	<div id="map_canvas" style="width: 75%; height: 100%; float: left;"></div>
+	<div id="data" style="width: 25%; height: 100%; float: left;">
+		<div class="tab-group">
+		  <div id="default" class="tab-item" onclick="changeTab(event, 'tab_general')">
+			General
+		  </div>
+		  <div class="tab-item active" onclick="changeTab(event, 'tab_fixMarkers')">
+			Fix Markers
+		  </div>
+		</div>
+	
+		<div id="tab_general" class="tab-content">
+			<table width="100%" cellspacing="10" cellpadding="10" border="0" style="table-layout: fixed; text-align: center;">
+				<tbody>
+					<tr>
+						<td><button class="btn btn-large btn-negative"> Red UAV </button></td>
+						<td><label id="coordsRedUAV"> coords red </label> </td>
+					</tr>
+					<tr>
+						<td><button class="btn btn-large btn-positive"> Green UAV </button></td>
+						<td><label id="coordsRedUAV"> coords green </label></td>
+					</tr>
+					<tr>
+						<td><button class="btn btn-large btn-primary"> Blue UAV </button></td>
+						<td><label id="coordsRedUAV"> coords blue </label></td>
+					</tr>
+	
+					<tr>
+						<td>
+							<div class="checkbox">
+								<label>
+									<input id="hideMarkers_CB" type="checkbox" onclick="toggleMarkers()"> Hide Markers </input>
+								</label>
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<div class="checkbox">
+								<label>
+									<input id="hidePolygon_CB" type="checkbox" onclick="togglePolygon()"> Hide Building Polygon </input>
+								</label>
+							</div>
+						</td>
+					</tr>
+					
+					<tr>
+						<td> Coordinate System </td>
+					</tr>
+					<tr>
+						<td style="font-size: small;"> Coordinate system name </td>
+						<td><input id="epsg_entry" type="EPSG code" class="form-control" placeholder="EPSG code"></td>
+						<td columnspan="2"><button class="btn btn-mini btn-default"> Change Coordinates </button></td>
+					</tr>
+					<tr><td><label id="coordsMouse_label"> coords </label></td></tr>
+				</tbody>
+			</table>
+		</div>
+	
+		<div id="tab_fixMarkers" class="tab-content">
+			<table width="250" cellspacing="0" cellpadding="0" border="0" style="text-align: center;">
+				<tr><td> Choose 2 Markers </td></tr>
+				<tr>
+					<td>
+						<div id="markers">
+							<label id="marker1"> marker i coords </label><br>
+							<label id="marker2"> marker i coords </label>
+						</div>
+					</td>
+				</tr>
+				<tr><td><button class="btn btn-mini btn-default"> Delete Selection </button></td></tr>
+	
+				<tr><td> Choose 2 Points </td></tr>
+				<tr>
+					<td>
+						<div id="markers">
+							<label id="point1"> point i coords </label><br>
+							<label id="point2"> point i coords </label>
+						</div>
+					</td>
+				</tr>
+				<tr><td><button class="btn btn-mini btn-default"> Delete Selection </button></td></tr>
+				
+				<tr>
+					<td> Coordinate System </td>
+				</tr>
+				<tr>
+					<td style="font-size: small;"> Coordinate system name </td>
+				</tr>
+				<tr><td><label id="coordsMouse_label2"> coords </label></td></tr>
+			</table>
+		</div>
+		
+	</div>
+</body>
+</html>

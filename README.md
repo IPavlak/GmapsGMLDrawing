@@ -5,6 +5,8 @@ Loading GML file onto Google Maps and displaying in GUI (Gtk) app
 
 Application can load GML file, read all its geometries, and deisplay it on Google Map. It gives the user an option to adjust the data (translate or rotate) or just draw new data (new points added by clicking on the map - button Add Markers). All data can be saved for use in the next session.
 
+It can also generate and draw a trajectory around a building at chosed distance as seen in a picture below.
+
 ![map](resources/map.png)
 
 To start the map simply navigate to the cloned repository and write `python map_glade.py`

@@ -31,7 +31,6 @@ class MapHTMLgenerator():
     def write_mouseListener(self, f):
         f.write("\t\tmap.addListener('mousemove', function (event) {\n")
         f.write("\t\t\ttitleJSON['mouseCoords'] = event.latLng.toJSON();\n")
-        f.write("\t\t\ttitleJSON['origin'] = 'mousemove';\n")
         f.write('\t\t\tdocument.title = JSON.stringify(titleJSON);\n')
         f.write('\t\t});\n\n')
 
@@ -55,22 +54,20 @@ class MapHTMLgenerator():
             '<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>\n')
         f.write('<title>Google Maps - pygmaps </title>\n')
         if self.apikey:
-            f.write('<script defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=visualization&key=%s"></script>\n' % self.apikey )
+            f.write('<script defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=visualization&sensor=true_or_false&key=%s"></script>\n' % self.apikey )
         else:
             f.write('<script defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=visualization&sensor=true_or_false"></script>\n' )
 
         f.write('<script type="text/javascript">\n')
         f.write('\tvar markers = [];\n')
-        f.write('\tvar markers_custom = [];\n')
         f.write('\tvar markers_uav = {};\n')
-        f.write('\tvar markers_trajectory = [];\n')
         f.write('\tvar polygon;\n')
         f.write('\tvar map;\n\n')
         f.write('\tvar titleJSON = {\n')
         f.write('\t\torigin: "",\n')
         f.write('\t\tmouseCoords: {},\n')
-        f.write('\t\tmarkerCoords: [],\n')
-        f.write('\t\tcustomMarkerCoords: []\n')
+        f.write('\t\ttranslation: [],')
+        f.write('\t\trotation: 0\n')
         f.write('\t};\n\n')
         f.write('\tfunction initialize() {\n')
         self.write_map(f)
@@ -147,17 +144,9 @@ class GoogleMapsJSWrapper:
 
             polygon.addListener('drag', function() {
                 var polypath = polygon.getPath().getArray();
-                for(var i = 0; i < polypath.length-1; i++){
+                for(var i = 0; i < polypath.length; i++){
                     markers[i].setPosition(polypath[i]);
                 }
-            });
-
-            polygon.addListener('dragend', function() {
-                titleJSON['markerCoords'] = [];
-                polygon.getPath().forEach(latlng => 
-                        titleJSON['markerCoords'].push([latlng.lng(), latlng.lat()]));
-                titleJSON['origin'] = 'polygon_drag_end';
-                document.title = JSON.stringify(titleJSON);
             });
             '''
 
@@ -193,10 +182,6 @@ class GoogleMapsJSWrapper:
             }
             markers = [];
 
-            for(var i = 0; i < markers_trajectory.length; i++){
-                markers_trajectory[i].setMap(null);
-            }
-
             if(polygon != null){
                 polygon.setMap(null);
             }
@@ -223,133 +208,18 @@ class GoogleMapsJSWrapper:
             self.js_code += "polygon.setOptions({clickable: false});\n"
 
     
-    def custom_markers(self, generate_markers_flag, size=1.0):
-        self.js_code += "var size = %f;\n" % size
-        if generate_markers_flag:
-            self.js_code += \
-                '''
-                map.addListener('click', function(event){
-                    var marker = new google.maps.Marker({
-                        title: 'Custom Marker',
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 4 * size,
-                            fillColor: 'orange',
-                            fillOpacity: 1.0,
-                            strokeWeight: 0
-                        },
-                        position: event.latLng,
-                        draggable: true,
-                        zIndex: 10
-                    });
-                    marker.setMap(map);
-                    markers_custom.push(marker);
-
-                    marker.addListener('dragend', function(event) {
-                        titleJSON['origin'] = 'markers_custom';
-                        titleJSON['customMarkerCoords'] = [];
-                        markers_custom.forEach(marker => 
-                            titleJSON['customMarkerCoords'].push([marker.getPosition().lng(), 
-                                                                  marker.getPosition().lat()]));
-                        document.title = JSON.stringify(titleJSON);
-                    });
-
-                    titleJSON['origin'] = 'markers_custom';
-                    titleJSON['customMarkerCoords'] = [];
-                    markers_custom.forEach(marker => 
-                        titleJSON['customMarkerCoords'].push([marker.getPosition().lng(), 
-                                                              marker.getPosition().lat()]));
-                    document.title = JSON.stringify(titleJSON);
-                });
-                '''
-        else:
-            self.js_code += "google.maps.event.clearListeners(map, 'click');"
-
-    def remove_custom_markers(self):
-        self.js_code += \
-            '''
-            for(var i in markers_custom){
-                markers_custom[i].setMap(null);
-            }
-            markers_custom = [];
-
-            titleJSON['origin'] = 'markers_custom';
-            titleJSON['customMarkerCoords'] = [];
-            markers_custom.forEach(marker => 
-                titleJSON['customMarkerCoords'].push([marker.getPosition().lng(), 
-                                                      marker.getPosition().lat()]));
-            document.title = JSON.stringify(titleJSON);
-            '''
-
-    def delete_last_custom_marker(self):
-        self.js_code += \
-            '''
-            if(markers_custom.length > 0)
-                markers_custom.pop().setMap(null);
-            
-            titleJSON['origin'] = 'markers_custom';
-            titleJSON['customMarkerCoords'] = [];
-            markers_custom.forEach(marker => 
-                titleJSON['customMarkerCoords'].push([marker.getPosition().lng(), 
-                                                      marker.getPosition().lat()]));
-            document.title = JSON.stringify(titleJSON);
-            '''
-
-    
-    def add_markers_trajectory(self, coords, color="red", size=1.0):
-        self.js_code += "var color = '%s';\n" % color
-        self.js_code += "var size = %f;\n" % size
-        for i in range(len(coords)):
-            self.js_code += "var latlng = new google.maps.LatLng(%f, %f);\n" % (coords[i][1], coords[i][0])
-            # self.js_code += "var alpha = %f;\n" % angles[i]
-            self.js_code += \
-                    '''
-                    var marker = new google.maps.Marker({
-                        title: "UAV trajectory",
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 4 * size,
-                            fillColor: color,
-                            fillOpacity: 1.0,
-                            strokeWeight: 0
-                            //rotation: alpha
-                        },
-                        position: latlng,
-                        draggable: false,
-                        zIndex: 15
-                    });
-                    marker.setMap(map);
-                    markers_trajectory.push(marker);
-                '''
-
-    def remove_trajectory_markers(self):
-        self.js_code += \
-            '''
-            for(var i in markers_trajectory){
-                markers_trajectory[i].setMap(null);
-            }
-            markers_trajectory = [];
-            '''
-
-    
     def add_marker_rotation_listener(self, centerOfRotationMarkerID):
         self.js_code += \
             '''
-            function find_farthest_marker(coords){
+            function find_farthest_marker(markerID){
                 var maxDist = 0.0;
                 var farthestMarkerID;
-
-                // transformation
-                var R = 6370000;
-                var phi0 = coords.lat()*Math.PI/180;
-                var xID = R*coords.lng()*Math.PI/180*Math.cos(phi0);
-                var yID = R*coords.lat()*Math.PI/180;
-
+                var coords1 = markers[markerID].getPosition();
                 for(var i in markers){
-                    coords = markers[i].getPosition();
-                    var x = R*coords.lng()*Math.PI/180*Math.cos(phi0);
-                    var y = R*coords.lat()*Math.PI/180;
-                    var dist = Math.sqrt( Math.pow(xID-x, 2) + Math.pow(yID-y, 2) );
+                    if(i == markerID) continue;
+                    var coords2 = markers[i].getPosition();
+                    var dist = Math.sqrt( Math.pow(coords1.lat() - coords2.lat(), 2) + 
+                                          Math.pow(coords1.lng() - coords2.lng(), 2)    );
                     if(dist > maxDist){
                         maxDist = dist;
                         farthestMarkerID = i;
@@ -364,72 +234,53 @@ class GoogleMapsJSWrapper:
             var markerStartCoords;
             var markerCenterCoords;
             var listenerHandle;
-            var markerStaticCoords;
 
             for(var i in markers){
+                if(centerOfRotationMarkerID == -1) markerCenterCoords = markers[find_farthest_marker(i)].getPosition();
+                else markerCenterCoords = markers[centerOfRotationMarkerID].getPosition();
+
+                // transformation to planar coordinates (equirectengular projection - simplified)
+                var phi0 = markerCenterCoords.lat();
+                var R = 6370000; // earth radius
+
                 markers[i].addListener('mousedown', function(event) {
                     map.setOptions({draggable: false});
-                    polygon.setOptions({clickable: false});
-
-                    markerStaticCoords = [];
-                    markers.forEach(marker => markerStaticCoords.push(marker.getPosition()));
-
-                    if(centerOfRotationMarkerID == -1) markerCenterCoords = markers[find_farthest_marker(event.latLng)].getPosition();
-                    else markerCenterCoords = markers[centerOfRotationMarkerID].getPosition();
-
-                    // transformation to planar coordinates (equirectengular projection - simplified)
-                    var phi0 = markerCenterCoords.lat()*Math.PI/180;
-                    var R = 6370000; // earth radius
-                     
-                    markerCenterCoords = [ R*markerCenterCoords.lng()*Math.PI/180*Math.cos(phi0), 
-                                           R*markerCenterCoords.lat()*Math.PI/180 ];
-                    markerStartCoords = [ R*event.latLng.lng()*Math.PI/180*Math.cos(phi0), 
-                                          R*event.latLng.lat()*Math.PI/180 ];
+                    polygon.setDraggable(false);
+                    markerStartCoords = event.latLng;
 
                     listenerHandle = google.maps.event.addListener(map, 'mousemove', function(event) {
-                        endCoords = [ R*event.latLng.lng()*Math.PI/180*Math.cos(phi0),
-                                      R*event.latLng.lat()*Math.PI/180 ];
-                        var v1 = [ markerStartCoords[0] - markerCenterCoords[0], 
-                                   markerStartCoords[1] - markerCenterCoords[1] ];
-                        var v1_angle = Math.atan2(v1[1], v1[0]);
-                        var v2 = [ endCoords[0] - markerCenterCoords[0], 
-                                   endCoords[1] - markerCenterCoords[1] ];
-                        var v2_angle = Math.atan2(v2[1],v2[0]);
-                        var alpha = v2_angle - v1_angle;
+                        endCoords = event.latLng;
+                        var v1 = [markerStartCoords.lat() - markerCenterCoords.lat(), 
+                                  markerStartCoords.lng() - markerCenterCoords.lng()];
+                        var v2 = [endCoords.lat() - markerCenterCoords.lat(), 
+                                  endCoords.lng() - markerCenterCoords.lng()];
+                        var cosAlpha = (v1[0]*v2[0] + v1[1]*v2[1]) / (Math.sqrt(v1[0]*v1[0] + v1[1]*v1[1]) * Math.sqrt(v2[0]*v2[0] + v2[1]*v2[1]));
+                        var alpha = Math.acos(cosAlpha);
+                        var sinAlpha = Math.sin(alpha);
 
                         var coords = [];
                         for(var j in markers){
-                            var markerCoords = markerStaticCoords[j];
-                            markerCoords = [ R*markerCoords.lng()*Math.PI/180*Math.cos(phi0),
-                                             R*markerCoords.lat()*Math.PI/180 ];
-                            var rm = [[Math.cos(alpha), -Math.sin(alpha)], 
-                                      [Math.sin(alpha),  Math.cos(alpha)]]; // rotation matrix
-                            var v = [markerCoords[0] - markerCenterCoords[0], 
-                                     markerCoords[1] - markerCenterCoords[1]];
+                            if(j == centerOfRotationMarkerID) continue;
+                            var markerCoords = markers[j].getPosition();
+                            var rm = [[cosAlpha, -sinAlpha], [sinAlpha, cosAlpha]]; // rotation matrix
+                            var v = [markerCoords.lat() - markerCenterCoords.lat(), 
+                                     markerCoords.lng() - markerCenterCoords.lng()];
                             var v_rotated = [ rm[0][0]*v[0]+rm[0][1]*v[1], rm[1][0]*v[0]+rm[1][1]*v[1] ];
                             var markerEndCoords = new google.maps.LatLng(
-                                (v_rotated[1]+markerCenterCoords[1]) / (R*Math.PI/180), 
-                                (v_rotated[0]+markerCenterCoords[0]) / (R*Math.PI/180*Math.cos(phi0))
+                                v_rotated[0]+markerCenterCoords.lat(), v_rotated[1]+markerCenterCoords.lng()
                             );
                             markers[j].setPosition(markerEndCoords);
                             coords.push(markerEndCoords);
                         }
-                        coords.push(coords[0]);
                         polygon.setPath(coords);
                     });
                 });
 
                 markers[i].addListener('mouseup', function(event) {
-                    markerStaticCoords = [];
-                    markers.forEach(marker => markerStaticCoords.push(marker.getPosition()));
+                    var markerEndCoords = event.latLng;
                     google.maps.event.removeListener(listenerHandle);
                     map.setOptions({draggable: true});
-
-                    titleJSON['markerCoords'] = [];
-                    polygon.getPath().forEach(latlng => 
-                            titleJSON['markerCoords'].push([latlng.lng(), latlng.lat()]));
-                    titleJSON['origin'] = 'marker_rotate_mouseup';
-                    document.title = JSON.stringify(titleJSON);
+                    polygon.setDraggable(true);
                 });
             }
             '''
@@ -438,10 +289,9 @@ class GoogleMapsJSWrapper:
         self.js_code += \
             '''
             for(var i in markers){
-                google.maps.event.clearListeners(markers[i], 'mousedown');
-                google.maps.event.clearListeners(markers[i], 'mouseup');
+                markers[i].clearListeners('mousedown');
+                markers[i].clearListeners('mouseup');
             }
-            google.maps.event.removeListener(listenerHandle);
             '''
 
     
@@ -453,21 +303,11 @@ class GoogleMapsJSWrapper:
             self.js_code += "\tmarkers[i].setVisible(true);\n"
         self.js_code += "}\n"
 
-    def hide_markers_trajectory(self, hide_flag):
-        self.js_code += "for(var i = 0; i<markers_trajectory.length; i++){\n"
-        if hide_flag:
-            self.js_code += "\tmarkers_trajectory[i].setVisible(false);\n"
-        else:
-            self.js_code += "\tmarkers_trajectory[i].setVisible(true);\n"
-        self.js_code += "}\n"
-
     def hide_polygon(self, hide_flag):
-        self.js_code += "if(polygon != null) {\n"
         if hide_flag:
-            self.js_code += "\tpolygon.setVisible(false);\n"
+            self.js_code += "polygon.setVisible(false);\n"
         else:
-            self.js_code += "\tpolygon.setVisible(true);\n"
-        self.js_code += "}\n"
+            self.js_code += "polygon.setVisible(true);\n"
 
     def set_UAV_marker_size(self, size):
         self.js_code += "var size = %f;\n" % size
@@ -496,18 +336,6 @@ class GoogleMapsJSWrapper:
                 marker.setIcon(icon);
             }
             '''
-
-    def set_trajectory_size(self, size):
-        self.js_code += "var size = %f;\n" % size
-        self.js_code += \
-            '''
-            for(var i in markers_trajectory){
-                marker = markers_trajectory[i];
-                var icon = marker.getIcon();
-                icon.scale = 4 * size;
-                marker.setIcon(icon);
-            }
-            '''
     
     def set_marker_color(self, color):
         self.js_code += "var color = '%s';\n" % color
@@ -524,18 +352,6 @@ class GoogleMapsJSWrapper:
     def set_polygon_color(self, color):
         self.js_code += "var color = '%s';\n" % color
         self.js_code += "polygon.setOptions({fillColor: color});\n"
-    
-    def set_trajectory_color(self, color):
-        self.js_code += "var color = '%s';\n" % color
-        self.js_code += \
-            '''
-            for(var i in markers_trajectory){
-                marker = markers_trajectory[i];
-                var icon = marker.getIcon();
-                icon.fillColor = color;
-                marker.setIcon(icon);
-            }
-            '''
 
     def set_polygon_opacity(self, opacity):
         self.js_code += "polygon.setOptions({fillOpacity: %f});\n" % opacity
@@ -554,6 +370,6 @@ if __name__ == "__main__":
     # gmap.marker( uav_lat, uav_long, color='#0000FF', title='UAV1')
 
     # API KEY
-    gmap.apikey = ""
+    gmap.apikey = "AIzaSyAvFZ4xali0KK8Qh-XRs8Wsbbaj7CktBag"
     gmap.draw("map.html")
 

@@ -1,0 +1,44 @@
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<title>Google Maps - pygmaps </title>
+<script defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?libraries=visualization&sensor=true_or_false"></script>
+<script type="text/javascript">
+	var markers = [];
+	var markers_custom = [];
+	var markers_uav = {};
+	var markers_trajectory = [];
+	var polygon;
+	var map;
+
+	var titleJSON = {
+		origin: "",
+		mouseCoords: {},
+		markerCoords: [],
+		customMarkerCoords: []
+	};
+
+	function initialize() {
+		var centerlatlng = new google.maps.LatLng(0.000000, 0.000000);
+		var myOptions = {
+			zoom: 1,
+			center: centerlatlng,
+			mapTypeId: 'satellite',
+			tilt: 0
+		};
+		map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+
+		map.addListener('mousemove', function (event) {
+			titleJSON['mouseCoords'] = event.latLng.toJSON();
+			titleJSON['origin'] = 'mousemove';
+			document.title = JSON.stringify(titleJSON);
+		});
+
+	}
+</script>
+</head>
+<body style="margin:0px; padding:0px;" onload="initialize()">
+	<div id="map_canvas" style="width: 100%; height: 100%;"></div>
+</body>
+</html>

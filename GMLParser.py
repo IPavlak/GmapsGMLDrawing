@@ -1,6 +1,75 @@
 from osgeo import ogr
 from osgeo.osr import SpatialReference
 import json
+from math import sqrt, atan2, pi, sin, cos, radians
+
+earth_a = 6378137.00000         # [m] WGS84 equator radius
+earth_b = 6356752.31414         # [m] WGS84 epolar radius
+earth_e = 8.1819190842622e-2    #  WGS84 eccentricity
+earth_ee = earth_e*earth_e
+
+def ECEFtoWGS84(x, y, z):
+    lambd = atan2(y, x)
+    l = sqrt((x*x)+(y*y))
+    
+    phi = atan2(z, (1.0-earth_ee)*l)
+    # // iterate to improve accuracy
+    for i in range(100):
+        db = phi
+        n = earth_a / sqrt(1.0 - (earth_ee * sin(phi) * sin(phi)))
+        h = l / cos(phi) - n
+        phi = atan2(z, (1.0 - earth_ee*n / (n+h)) * l)
+        db = abs(db-phi)
+        if db < 1e-12:
+            break
+    if phi > 0.5*pi:
+        phi -= pi/2
+    
+    lat = phi*180/pi
+    lon = lambd*180/pi
+    return lat, lon, h
+
+def WGS84toECEF(lat, lon, h):
+    phi = radians(lat)
+    lambd = radians(lon)
+    # WGS84 from eccentricity
+    l = earth_a / sqrt(1.0 - earth_ee * sin(phi) * sin(phi))
+    x = (l + h) * cos(phi) * cos(lambd)
+    y = (l + h) * cos(phi) * sin(lambd)
+    z = (((1.0 - earth_ee) * l) + h) * sin(phi)
+
+    return x, y, z
+
+def ECEFtoENU(x, y, z, lat0, lon0, h0):
+    phi = radians(lat0)
+    lambd = radians(lon0)
+
+    # ECEF origin
+    x0, y0, z0 = WGS84toECEF(lat0, lon0, h0)
+
+    xd = x - x0
+    yd = y - y0
+    zd = z - z0
+
+    xEast  =     -sin(lambd)      * xd     +cos(lambd)      * yd      +0     * zd
+    yNorth = -cos(lambd)*sin(phi) * xd -sin(lambd)*sin(phi) * yd   +cos(phi) * zd
+    zUp    =  cos(lambd)*cos(phi) * xd +cos(phi)*sin(lambd) * yd   +sin(phi) * zd
+
+    return xEast, yNorth, zUp
+
+def ENUtoECEF(x, y, z, lat0, lon0, h0):
+    phi = radians(lat0)
+    lambd = radians(lon0)
+
+    # ECEF origin
+    x0, y0, z0 = WGS84toECEF(lat0, lon0, h0)
+
+    X = -sin(lambd) * x  -cos(lambd)*sin(phi) * y  +cos(lambd)*cos(phi) * z  + x0
+    Y =  cos(lambd) * x  -sin(lambd)*sin(phi) * y  +sin(lambd)*cos(phi) * z  + y0
+    Z =     0       * x         +cos(phi)     * y        +sin(phi)      * z  + z0
+
+    return X, Y, Z
+
 
 class GMLParser:
     def __init__(self):

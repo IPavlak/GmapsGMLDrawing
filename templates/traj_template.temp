@@ -1,0 +1,9 @@
+{
+    "polygon_color": "#2e3436", 
+    "marker_color": "#8ae234", 
+    "uav_size": 1.0, 
+    "marker_size": 2.000000000000001, 
+    "traj_marker_color": "#6494ed", 
+    "traj_marker_size": 1.5000000000000004, 
+    "polygon_opacity": 1.0
+}

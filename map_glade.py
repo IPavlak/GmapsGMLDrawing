@@ -13,8 +13,9 @@ import os.path
 from math import pi, sin, cos, atan2
 
 # import local files
-from GMLParser import GMLParser
+from GMLParser import *
 from GoogleMapsWebWrapper import GoogleMapsJSWrapper, MapHTMLgenerator
+from WayPointGenerator import generate_trajectory_path, generate_trajectory_path_single_z
 
 # All points are in the form of (Longitude, Latitude) !!!!!
 class MapApp(threading.Thread):
@@ -40,6 +41,9 @@ class MapApp(threading.Thread):
         self.mouseLatLabelCustom = self.builder.get_object('mouse_latitude_label_custom')
         self.mouseLongLabelCustom = self.builder.get_object('mouse_longitude_label_custom')
         self.mouseCoordSystemLabelCustom = self.builder.get_object('coordinate_system_label_custom')
+        self.mouseLatLabelTrajectory = self.builder.get_object('mouse_latitude_label_traj')
+        self.mouseLongLabelTrajectory = self.builder.get_object('mouse_longitude_label_traj')
+        self.mouseCoordSystemLabelTrajectory = self.builder.get_object('coordinate_system_label_traj')
         self.hideMarkersCheckbox = self.builder.get_object('hideMarkers_cb')
         self.hidePolygonCheckbox = self.builder.get_object('hidePolygon_cb')
         self.UAVredImg = self.builder.get_object('uav_red_img')
@@ -66,6 +70,17 @@ class MapApp(threading.Thread):
         self.deleteLastMarkerButton = self.builder.get_object('delete_last_marker_button')
         self.resetNewMarkersButton = self.builder.get_object('reset_new_markers_button')
         self.acceptNewMarkersButton = self.builder.get_object('accept_new_markers_button')
+        self.generateTrajectoryButton = self.builder.get_object('generate_trajectory_button')
+        self.trajectoryDistanceSpinButton = self.builder.get_object('trajectory_distance_spinbutton')
+        self.trajectoryResolutionSpinButton = self.builder.get_object('trajectory_resolution_spinbutton')
+        self.trajectoryMinHeightSpinButton = self.builder.get_object('trajectory_min_height_spinbutton')
+        self.trajectoryMaxHeightSpinButton = self.builder.get_object('trajectory_max_height_spinbutton')
+        self.trajectoryHeightResolutionSpinButton = self.builder.get_object('trajectory_height_res_spinbutton')
+        self.autoTrajectoryGenerationSwitch = self.builder.get_object('automatic_trajectory_generation_switch')
+        self.hideMarkersTrajectoryCheckBox = self.builder.get_object('hide_markers_trajectory_cb')
+        self.trajectoryMarkerSizeSpinButton = self.builder.get_object('trajectory_markers_size_spinbutton')
+        self.trajectoryMarkerColorButton = self.builder.get_object('trajectory_markers_colorbutton')
+
 
         fileChooser = self.builder.get_object('file_chooser')
         GMLFileFilter = self.builder.get_object('GMLfile_filter')
@@ -88,8 +103,11 @@ class MapApp(threading.Thread):
         self.markerColorHex = "#{:02x}{:02x}{:02x}".format(int(rgba.red*255), int(rgba.green*255), int(rgba.blue*255))
         rgba = self.polygonColorButton.get_rgba()
         self.polygonColorHex = "#{:02x}{:02x}{:02x}".format(int(rgba.red*255), int(rgba.green*255), int(rgba.blue*255))
+        rgba = self.trajectoryMarkerColorButton.get_rgba()
+        self.trajectoryColorHex = "#{:02x}{:02x}{:02x}".format(int(rgba.red*255), int(rgba.green*255), int(rgba.blue*255))
         self.markerColorButton.connect('notify::color', self.onMarkerColorChange)
         self.polygonColorButton.connect('notify::color', self.onPolygonColorChange)
+        self.trajectoryMarkerColorButton.connect('notify::color', self.onTrajectoryMarkerColorChange)
 
         styleProvider = Gtk.CssProvider()
         styleProvider.load_from_data('''
@@ -97,9 +115,18 @@ class MapApp(threading.Thread):
                 background: #DA3030; 
                 color: #C5B9C4;
             }
+            #generate_trajectory_button {
+                background: #50B2D8;
+                color: #FFFFFF;
+            }
         ''')
         Gtk.StyleContext.add_provider(
             self.addMarkersToggleButton.get_style_context(),
+            styleProvider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        Gtk.StyleContext.add_provider(
+            self.generateTrajectoryButton.get_style_context(),
             styleProvider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
@@ -114,6 +141,7 @@ class MapApp(threading.Thread):
         self.coords = []
         self.adjustedCoords = []
         self.customCoords = []
+        self.trajCoords = []
         self.phi0 = 0; self.R = 6370000 # earth radius
         self.v_translate = [0, 0]; self.alpha_rotate = 0
 
@@ -147,7 +175,7 @@ class MapApp(threading.Thread):
         self.running = True
         self.thread = threading.Thread(target=self.UAVcoords_stream)
         self.thread.daemon = True
-        #self.thread.start()
+        self.thread.start()
 
 
 
@@ -167,26 +195,34 @@ class MapApp(threading.Thread):
         while self.running:
             if self.activeParcelTreeIter is None:
                 continue
-            lat1, long1 = self.coords[0][0][1], self.coords[0][0][0]
-            lat2, long2 = self.coords[0][1][1], self.coords[0][1][0]
-            lat3, long3 = self.coords[0][2][1], self.coords[0][2][0]
-            lat4, long4 = self.coords[0][3][1], self.coords[0][3][0]
+            if len(self.trajCoords) == 0:
+                continue
+            # lat1, long1 = self.coords[0][0][1], self.coords[0][0][0]
+            # lat2, long2 = self.coords[0][1][1], self.coords[0][1][0]
+            # lat3, long3 = self.coords[0][2][1], self.coords[0][2][0]
+            # lat4, long4 = self.coords[0][3][1], self.coords[0][3][0]
+            lat1, long1 = self.trajCoords[0][1], self.trajCoords[0][0]
+            lat1e, long1e = self.trajCoords[1][1], self.trajCoords[1][0]
+            lat2, long2 = self.trajCoords[13][1], self.trajCoords[13][0]
+            lat2e, long2e = self.trajCoords[14][1], self.trajCoords[14][0]
+            lat3, long3 = self.trajCoords[30][1], self.trajCoords[30][0]
+            lat3e, long3e = self.trajCoords[31][1], self.trajCoords[31][0]
             for i in range(N):
-                lt1 = lat1+(lat2-lat1)/N*i
-                ln1 = long1+(long2-long1)/N*i
-                lt2 = lat2+(lat3-lat2)/N*i
-                ln2 = long2+(long3-long2)/N*i
-                lt3 = lat3+(lat4-lat3)/N*i
-                ln3 = long3+(long4-long3)/N*i
+                lt1 = lat1+(lat1e-lat1)/N*i
+                ln1 = long1+(long1e-long1)/N*i
+                lt2 = lat2+(lat2e-lat2)/N*i
+                ln2 = long2+(long2e-long2)/N*i
+                lt3 = lat3+(lat3e-lat3)/N*i
+                ln3 = long3+(long3e-long3)/N*i
                 GLib.idle_add(self.send_coords, lt1, ln1, lt2, ln2, lt3, ln3)
                 sleep(0.01)
             for i in range(N):
-                lt1 = lat2+(lat1-lat2)/N*i
-                ln1 = long2+(long1-long2)/N*i
-                lt2 = lat3+(lat2-lat3)/N*i
-                ln2 = long3+(long2-long3)/N*i
-                lt3 = lat4+(lat3-lat4)/N*i
-                ln3 = long4+(long3-long4)/N*i
+                lt1 = lat1e+(lat1-lat1e)/N*i
+                ln1 = long1e+(long1-long1e)/N*i
+                lt2 = lat2e+(lat2-lat2e)/N*i
+                ln2 = long2e+(long2-long2e)/N*i
+                lt3 = lat3e+(lat3-lat3e)/N*i
+                ln3 = long3e+(long3-long3e)/N*i
                 GLib.idle_add(self.send_coords, lt1, ln1, lt2, ln2, lt3, ln3)
                 sleep(0.01)
     
@@ -196,7 +232,7 @@ class MapApp(threading.Thread):
         self.set_UAV_position('blue', [lon3, lat3])
 
     def set_UAV_position(self, color, coords):
-        coords = self.apply_adjustment(coords)
+        # coords = self.apply_adjustment(coords) # komentirano samo za demo (letjelice na putanji)
         if color == 'red':
             self.jsWrapper.set_UAV_position('red', coords)
             self.UAVredLatLabel.set_text("%14.10f" % coords[1])
@@ -227,15 +263,21 @@ class MapApp(threading.Thread):
         self.mouseLongLabelFix.set_text("%16.12f" % msg['mouseCoords']['lng'])
         self.mouseLatLabelCustom.set_text("%16.12f" % msg['mouseCoords']['lat'])
         self.mouseLongLabelCustom.set_text("%16.12f" % msg['mouseCoords']['lng'])
+        self.mouseLatLabelTrajectory.set_text("%16.12f" % msg['mouseCoords']['lat'])
+        self.mouseLongLabelTrajectory.set_text("%16.12f" % msg['mouseCoords']['lng'])
 
         if msg['origin'] == 'marker_rotate_mouseup':
             self.adjustedCoords = msg['markerCoords']
             self.jsWrapper.set_polygon_drag(self.polygonDragCheckButton.get_active())
             self.jsWrapper.execute()
             self.set_transformation_parameters()
+            if self.autoTrajectoryGenerationSwitch.get_active():
+                self.generateTrajectory(self.adjustedCoords)
         elif msg['origin'] == 'polygon_drag_end':
             self.adjustedCoords = msg['markerCoords']
             self.set_transformation_parameters()
+            if self.autoTrajectoryGenerationSwitch.get_active():
+                self.generateTrajectory(self.adjustedCoords)
         elif msg['origin'] == 'markers_custom':
             self.customCoords = msg['customMarkerCoords']
 
@@ -269,6 +311,12 @@ class MapApp(threading.Thread):
                               adjustedMarkerX - adjustedCenterX)
 
         self.alpha_rotate = adjustedAngle - angle
+
+    def apply_adjustment_to_all(self, coords):
+        adjusted_coords = []
+        for coord in coords:
+            adjusted_coords.append(self.apply_adjustment(coord))
+        return adjusted_coords
 
     def apply_adjustment(self, coords):
         if self.activeParcelTreeIter is None:
@@ -309,6 +357,7 @@ class MapApp(threading.Thread):
     def reset_config(self, coords):
         self.hideMarkersCheckbox.set_active(False)
         self.hidePolygonCheckbox.set_active(False)
+        self.hideMarkersTrajectoryCheckBox.set_active(False)
         self.polygonDragCheckButton.set_active(False)
         self.polygonRotateCheckButton.set_active(False)
 
@@ -428,6 +477,13 @@ class MapApp(threading.Thread):
             self.jsWrapper.hide_markers(cbButton.get_active())
             self.jsWrapper.execute()
 
+    def onHideMarkersTrajectoryCheckboxToggle(self, cbButton):
+        if self.activeParcelTreeIter is None:
+            cbButton.set_active(False)
+        else:
+            self.jsWrapper.hide_markers_trajectory(cbButton.get_active())
+            self.jsWrapper.execute()
+
     def onHidePolygonCheckboxToggle(self, cbButton):
         if self.activeParcelTreeIter is None:
             cbButton.set_active(False)
@@ -460,7 +516,9 @@ class MapApp(threading.Thread):
         self.coords = config['coordinates']
         self.adjustedCoords = config['adjusted_coordinates']
         parcelID = config['parcelID']
-        self.coords[parcelID] = self.adjustedCoords
+        # self.coords[parcelID] = self.adjustedCoords
+        if len(self.adjustedCoords) == 0:
+            self.adjustedCoords = self.coords[parcelID]
 
         self.parcelListStore.clear()
         for i in range(len(self.coords)):
@@ -481,6 +539,13 @@ class MapApp(threading.Thread):
         self.v_translate = config['v_translate']
         self.alpha_rotate = config['alpha_rotate']
         self.phi0 = config['phi0']
+
+        self.trajectoryDistanceSpinButton.set_value(config['trajectory']['distance'])
+        self.trajectoryResolutionSpinButton.set_value(config['trajectory']['resolution'])
+        self.trajectoryMaxHeightSpinButton.set_value(config['trajectory']['max_height'])
+        self.trajectoryMinHeightSpinButton.set_value(config['trajectory']['min_height'])
+        self.trajectoryHeightResolutionSpinButton.set_value(config['trajectory']['height_res'])
+        self.generateTrajectory(self.apply_adjustment_to_all(self.coords[parcelID]))
 
 
     def onSaveConfig(self, button):
@@ -512,7 +577,14 @@ class MapApp(threading.Thread):
             'parcelID': parcelID,
             'phi0': self.phi0,
             'v_translate': self.v_translate,
-            'alpha_rotate': self.alpha_rotate
+            'alpha_rotate': self.alpha_rotate,
+            'trajectory': {
+                'distance': self.trajectoryDistanceSpinButton.get_value(),
+                'resolution': self.trajectoryResolutionSpinButton.get_value(),
+                'max_height': self.trajectoryMaxHeightSpinButton.get_value(),
+                'min_height': self.trajectoryMinHeightSpinButton.get_value(),
+                'height_res': self.trajectoryHeightResolutionSpinButton.get_value()
+            }
         }
         with open(configFile, 'w') as f:
             f.write( json.dumps(config, indent=4) )
@@ -524,6 +596,10 @@ class MapApp(threading.Thread):
     
     def onMarkerSizeChange(self, spinButton):
         self.jsWrapper.set_marker_size(spinButton.get_value())
+        self.jsWrapper.execute()
+
+    def onTrajectoryMarkerSizeChange(self, spinButton):
+        self.jsWrapper.set_trajectory_size(spinButton.get_value())
         self.jsWrapper.execute()
 
     def onMarkerColorChange(self, colorButton, *args):
@@ -540,6 +616,13 @@ class MapApp(threading.Thread):
             self.jsWrapper.set_polygon_color(self.polygonColorHex)
             self.jsWrapper.execute()
 
+    def onTrajectoryMarkerColorChange(self, colorButton, *args):
+        rgba = colorButton.get_rgba()
+        self.trajectoryColorHex = "#{:02x}{:02x}{:02x}".format(int(rgba.red*255), int(rgba.green*255), int(rgba.blue*255))
+        if self.activeParcelTreeIter is not None:
+            self.jsWrapper.set_trajectory_color(self.trajectoryColorHex)
+            self.jsWrapper.execute()
+
     def onPolygonOpacityChange(self, ranger):
         if self.activeParcelTreeIter is not None:
             self.jsWrapper.set_polygon_opacity(ranger.get_value())
@@ -548,12 +631,16 @@ class MapApp(threading.Thread):
     def onResetTemplate(self, button):
         self.UAVsizeSpinButton.set_value(1.0)
         self.markerSizeSpinButton.set_value(1.0)
+        self.trajectoryMarkerSizeSpinButton.set_value(1.0)
         markerColor = Gdk.RGBA()
         markerColor.parse("#0000FF")
         self.markerColorButton.set_rgba(markerColor)
         polygonColor = Gdk.RGBA()
         polygonColor.parse("#6495ED")
         self.polygonColorButton.set_rgba(polygonColor)
+        trajMarkerColor = Gdk.RGBA()
+        trajMarkerColor.parse('#FF0000')
+        self.trajectoryMarkerColorButton.set_rgba(trajMarkerColor)
         self.polygonOpacityAdjustment.set_value(0.3)
 
     def onLoadTemplate(self, button):
@@ -586,6 +673,9 @@ class MapApp(threading.Thread):
         rgba.parse(template['polygon_color'])
         self.polygonColorButton.set_rgba(rgba)
         self.polygonOpacityAdjustment.set_value(template['polygon_opacity'])
+        self.trajectoryMarkerSizeSpinButton.set_value(template['traj_marker_size'])
+        rgba.parse(template['traj_marker_color'])
+        self.trajectoryMarkerColorButton.set_rgba(rgba)
 
     def onSaveTemplate(self, button):
         dialog = Gtk.FileChooserDialog(
@@ -614,7 +704,9 @@ class MapApp(threading.Thread):
             'marker_color': self.markerColorHex,
             'uav_size': self.UAVsizeSpinButton.get_value(),
             'polygon_color': self.polygonColorHex,
-            'polygon_opacity': self.polygonOpacityAdjustment.get_value()
+            'polygon_opacity': self.polygonOpacityAdjustment.get_value(),
+            'traj_marker_size': self.trajectoryMarkerSizeSpinButton.get_value(),
+            'traj_marker_color': self.trajectoryColorHex
         }
         with open(templateFile, 'w') as f:
             f.write( json.dumps(template, indent=4) )
@@ -634,6 +726,7 @@ class MapApp(threading.Thread):
 
         self.hideMarkersCheckbox.set_active(togglebutton.get_active())
         self.hidePolygonCheckbox.set_active(togglebutton.get_active())
+        self.hideMarkersTrajectoryCheckBox.set_active(togglebutton.get_active())
         self.jsWrapper.custom_markers(togglebutton.get_active())
         self.jsWrapper.execute()
 
@@ -645,6 +738,7 @@ class MapApp(threading.Thread):
         self.jsWrapper.delete_last_custom_marker()
         self.jsWrapper.execute()
 
+    # Markers should be placed clockwise
     def onAcceptNewMarkersClick(self, button):
         if(len(self.customCoords) < 3):
             infodialog = Gtk.MessageDialog(
@@ -691,11 +785,143 @@ class MapApp(threading.Thread):
 
             self.onResetNewMarkersClick(None)
             self.addMarkersToggleButton.set_active(False)
+            if self.autoTrajectoryGenerationSwitch.get_active():
+                self.generateTrajectory(self.customCoords)
+
+
+    def generateTrajectory(self, building_coords):
+        dist = self.trajectoryDistanceSpinButton.get_value()
+        res = self.trajectoryResolutionSpinButton.get_value()
+        height = self.trajectoryMaxHeightSpinButton.get_value()
+        min_height = self.trajectoryMinHeightSpinButton.get_value()
+        # res_building_points = 0.5
+        res_height = self.trajectoryHeightResolutionSpinButton.get_value()
+
+        # Apply recommendation to res_building_points
+        res_building_points = 0.1*dist
+
+        # check trajectory parameters
+        areValid = self.trajectoryParametersValid(dist, res, res_building_points, height, min_height, res_height)
+        if not areValid:
+            return False
+
+        self.jsWrapper.remove_trajectory_markers()
+
+        # lon0 = self.coords[parcelID][0][0]; lat0 = self.coords[parcelID][0][1]
+        lon0 = building_coords[0][0]; lat0 = building_coords[0][1]
+        xs = []; ys = []; zs = []
+        for coord in building_coords[:-1]: # self.coords[parcelID][:-1]:
+            x, y, z = WGS84toECEF(coord[1], coord[0], 0)
+            xx, yy, zz = ECEFtoENU(x, y, z, lat0, lon0, 0)
+            xs.append(xx); ys.append(yy); zs.append(zz)
+            # print(xx, yy, zz)
+
+        traj_x, traj_y, traj_z, traj_yaw = generate_trajectory_path(
+            xs[::-1], ys[::-1], dist, res, res_building_points, height, min_height, res_height)
+        traj_x, traj_y, traj_yaw = generate_trajectory_path_single_z(traj_x, traj_y, traj_z, traj_yaw)
+
+        self.trajCoords = []
+        for i in range(len(traj_x)):
+            x, y, z = ENUtoECEF(traj_x[i], traj_y[i], 0.0, lat0, lon0, 0.0)
+            lat, lon, h = ECEFtoWGS84(x, y, z)
+            self.trajCoords.append([lon, lat])
+        self.jsWrapper.add_markers_trajectory(self.trajCoords, color=self.trajectoryColorHex, size=self.trajectoryMarkerSizeSpinButton.get_value())
+
+
+    def onGenerateTrajectory(self, button):
+        assert(self.activeParcelTreeIter is not None)
+        parcelID = self.parcelListStore[self.activeParcelTreeIter][0]
+        self.generateTrajectory(self.apply_adjustment_to_all(self.coords[parcelID]))
+
+    def onTrajectoryDistanceChange(self, spinbutton):
+        assert(self.activeParcelTreeIter is not None)
+        parcelID = self.parcelListStore[self.activeParcelTreeIter][0]
+        if self.autoTrajectoryGenerationSwitch.get_active():
+            self.generateTrajectory(self.apply_adjustment_to_all(self.coords[parcelID]))
+
+    def onTrajectoryResolutionChange(self, spinbutton):
+        assert(self.activeParcelTreeIter is not None)
+        parcelID = self.parcelListStore[self.activeParcelTreeIter][0]
+        if self.autoTrajectoryGenerationSwitch.get_active():
+            self.generateTrajectory(self.apply_adjustment_to_all(self.coords[parcelID]))
+
+    def onTrajectoryMaxHeightChange(self, spinbutton):
+        assert(self.activeParcelTreeIter is not None)
+        parcelID = self.parcelListStore[self.activeParcelTreeIter][0]
+        if self.autoTrajectoryGenerationSwitch.get_active():
+            self.generateTrajectory(self.apply_adjustment_to_all(self.coords[parcelID]))
+        
+    def onTrajectoryMinHeightChange(self, spinbutton):
+        assert(self.activeParcelTreeIter is not None)
+        parcelID = self.parcelListStore[self.activeParcelTreeIter][0]
+        if self.autoTrajectoryGenerationSwitch.get_active():
+            self.generateTrajectory(self.apply_adjustment_to_all(self.coords[parcelID]))
+
+    def onTrajectoryHeightResolutionChange(self, spinbutton):
+        assert(self.activeParcelTreeIter is not None)
+        parcelID = self.parcelListStore[self.activeParcelTreeIter][0]
+        if self.autoTrajectoryGenerationSwitch.get_active():
+            self.generateTrajectory(self.apply_adjustment_to_all(self.coords[parcelID]))
+
+    def trajectoryParametersValid(self, dist, res, res_building_points, height, min_height, res_height):
+        if height < min_height:
+            errordialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                flags=0,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text="Min Height greater than Max Height"
+            )
+            errordialog.format_secondary_text("Please change parameters above and try again")
+            response = errordialog.run()
+            errordialog.destroy()
+            return False
+        if dist < 1.0:
+            dialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK_CANCEL,
+                text='Distance from building dangerously low'
+            )
+            dialog.format_secondary_text("Do you want to preceed ?")
+            response = dialog.run()
+            dialog.destroy()
+            if response == Gtk.ResponseType.CANCEL:
+                return False
+        if min_height < 1.0:
+            dialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK_CANCEL,
+                text='Minimum height of trajectory is dangerously low'
+            )
+            dialog.format_secondary_text("Do you want to preceed ?")
+            response = dialog.run()
+            dialog.destroy()
+            if response == Gtk.ResponseType.CANCEL:
+                return False
+        if res > 0.3*dist:
+            dialog = Gtk.MessageDialog(
+                transient_for=self.window,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK_CANCEL,
+                text='Distance and Resolution are NOT inside recommended relation: Resolution < 0.3*Distance'
+            )
+            dialog.format_secondary_text("Do you want to preceed, algorithm may not work ?")
+            response = dialog.run()
+            dialog.destroy()
+            if response == Gtk.ResponseType.CANCEL:
+                return False
+        return True
+
 
 
     def destroy(self, *args):
         self.running = False
-        #self.thread.join()
+        self.thread.join()
         Gtk.main_quit(*args)
 
     def run(self):
