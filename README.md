@@ -9,6 +9,10 @@ Application can load GML file, read all its geometries, and deisplay it on Googl
 
 To start the map simply navigate to the cloned repository and write `python map_glade.py`
 
+### More options
+
+Checkout a branch trajectory if you need to generate and draw a trajectory around a building at specified distance.
+
 ### Dependencies
 - GDAL library (use some of the following lines)
 ```
