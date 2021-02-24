@@ -7,6 +7,8 @@ Application can load GML file, read all its geometries, and deisplay it on Googl
 
 ![map](resources/map.png)
 
+To start the map simply navigate to the cloned repository and write `python map_glade.py`
+
 ### Dependencies
 - GDAL library (use some of the following lines)
 ```
