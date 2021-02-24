@@ -147,7 +147,7 @@ class MapApp(threading.Thread):
         self.running = True
         self.thread = threading.Thread(target=self.UAVcoords_stream)
         self.thread.daemon = True
-        self.thread.start()
+        #self.thread.start()
 
 
 
@@ -695,7 +695,7 @@ class MapApp(threading.Thread):
 
     def destroy(self, *args):
         self.running = False
-        self.thread.join()
+        #self.thread.join()
         Gtk.main_quit(*args)
 
     def run(self):

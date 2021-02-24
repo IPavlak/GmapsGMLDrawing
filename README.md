@@ -1,5 +1,11 @@
 # GmapsGMLDrawing
-Loading GML file onto Google Maps and displaying in Glade app
+Loading GML file onto Google Maps and displaying in GUI (Gtk) app
+
+### A bit longer description:
+
+Application can load GML file, read all its geometries, and deisplay it on Google Map. It gives the user an option to adjust the data (translate or rotate) or just draw new data (new points added by clicking on the map - button Add Markers). All data can be saved for use in the next session.
+
+![map](resources/map.png)
 
 ### Dependencies
 - GDAL library (use some of the following lines)
