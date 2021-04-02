@@ -30,3 +30,9 @@ sudo apt-get install libwebkitgtk-dev
 sudo apt-get install glade
 ```
 
+### Running
+Position yourself in the root folder of the project and run the following command
+```
+python map_glade.py
+```
+
